@@ -21,6 +21,43 @@ public class Roads extends Facade<Node>{
     readBlocks(file2);
   }
   
+  public void assignVul(){
+    for(Node node : items) {
+            for(Lane lane : node.outboundLanes()) {
+                boolean in = (boolean) layer.contains(lane.center).get(0);
+                if(in){
+                   float damage = (int)layer.contains(lane.center).get(1);
+                   lane.vul = damage;
+                }                  
+            }
+    }
+    
+  }
+  
+  
+  public void closeLanes() {
+        for(Node node : items) {
+            for(Lane lane : node.outboundLanes()) {
+                float vulProb = map(lane.vul, 1.0,5.0,0.0,1.0);
+                float rand = random(0.0,1.0);
+                if (vulProb > 0.6 && rand < 0.2){
+                  lane.closeLane();
+                }
+            }
+        }
+        
+    }
+    
+   public void makeInjured(){
+     for(Node node : items) {
+       for(Lane lane : node.outboundLanes()) {
+          lane.probInjured();
+        }
+      }
+    }
+    
+  
+  
   /**
   *Add a node in the roads
   *Asign an ID that is equals to the length of the items
@@ -73,7 +110,6 @@ public class Roads extends Facade<Node>{
           for (Lane lane: node.lanes){
             boolean in = (boolean) layer.contains(lane.center).get(0);
             if(in){
-            //if(layer.contains(lane.center)){
               float damage = (int)layer.contains(lane.center).get(1);
               damage = map(damage,1,5,255,0);
               canvas.stroke(255,damage,0,60);
@@ -87,24 +123,6 @@ public class Roads extends Facade<Node>{
       }
     }
     
-     /**
-     *Draw the whole lanes but the color is modified by the values of ms and ratio
-     */
-     public void drawLanesTraffic(PGraphics canvas, int stroke, color c) {
-        for(Node node : items)
-          for (Lane lane: node.lanes){           
-            //th
-            float valor = map(lane.ms, 4.85, 5.02,0.0, 1.0);
-            float newStroke = map(lane.ratio,0,1.8,0,5);
-            color occupColor = lerpColor(#FFFFFF, #FF0000, valor);
-            canvas.stroke(occupColor, 127); canvas.strokeWeight(int(newStroke));
-            for(int i = 1; i < lane.vertices.size(); i++) {
-            PVector prevVertex = lane.vertices.get(i-1);
-            PVector vertex = lane.vertices.get(i);
-            canvas.line(prevVertex.x, prevVertex.y, vertex.x, vertex.y); 
-          }  
-        }
-      }
       
     /**
     *Get all the center of the lanes
@@ -138,7 +156,8 @@ public class Roads extends Facade<Node>{
         if (poi){
           POI punto = (POI) node;
           if(punto.isType(tipo)){
-           punto.size = 8;
+            //println(punto.toString());
+           punto.size = 6;
           }else{
            punto.size = 1;
           }
@@ -167,12 +186,11 @@ public class Roads extends Facade<Node>{
             float ms        = row.getFloat("ms");
             float ratio         = row.getFloat("ratio");
             count += 1;
-            Lane minLane = findClosestLane(location);
+            Lane minLane= findClosestLane(location);
             minLane.ms = ms;
-            minLane.ratio = ratio;  
+            minLane.ratio = ratio;
         }
-        println(count);
-        println("traffc layer done!");
+        println("LOADED", count);
     }
     
     /**
@@ -218,6 +236,23 @@ public class Roads extends Facade<Node>{
         }
         return closestLane;
     }
+    
+     public Lane findClosestLaneTraffic(PVector position) {
+        Float minDistance = Float.NaN;
+        Lane closestLane = null;
+        for(Node node : items) {
+            for(Lane lane : node.outboundLanes()) {
+                PVector linePoint = lane.findClosestPoint(position);
+                float distance = position.dist(linePoint);
+                if(minDistance.isNaN() || distance < minDistance || lane.ms != 0) {
+                    minDistance = distance;
+                    closestLane = lane;
+                }
+            }
+        }
+        return closestLane;
+    }
+
     /**
     *Map the lat lon to a UTM coordinates
     *Map the UTM to the canvas size

@@ -23,7 +23,8 @@ private class Lane {
     
     public float ms;
     public float ratio;
-    
+    public float vul;
+    public boolean closed = false;
     /**
     * Initiate Lane with name, init and final nodes and inbetween vertices
     * @param name  Name of the street containing the lane
@@ -46,12 +47,29 @@ private class Lane {
         distance = calcLength();
     }
     
+
     /**
     * Get the end node, where the lane is connected
     * @return end node
     */
     public Node getEnd() {
         return finalNode;
+    }
+    
+    public void closeLane(){
+      closed =true;
+    }
+    
+    public void probInjured(){
+      if(closed){
+        for(Agent people : crowd){
+          float rand = random(0.0,1.0);
+          if (rand < 0.001){
+            people.injured = true;
+            people.working = false;
+          }
+        }
+      }
     }
     
     
@@ -243,14 +261,48 @@ private class Lane {
     * @param c  Lane color
     */
     public void draw(PGraphics canvas, int stroke, color c) {
-        color occupColor = lerpColor(c, #FF0000, occupancy*2);    // Lane occupancy color interpolation
-        canvas.stroke(occupColor, 127); canvas.strokeWeight(stroke);
-
-        for(int i = 1; i < vertices.size(); i++) {
-            PVector prevVertex = vertices.get(i-1);
-            PVector vertex = vertices.get(i);
-            canvas.line(prevVertex.x, prevVertex.y, vertex.x, vertex.y); 
+        if(trafficShow){
+            float valor = map(ms, 4.85, 5.02,0.0, 1.0);
+            float newStroke = map(ratio,0,1.8,0,5);
+            color occupColor = lerpColor(#FFFFFF, #FF0000, valor);
+            canvas.stroke(occupColor, 127); canvas.strokeWeight(int(newStroke));
+            for(int i = 1; i < vertices.size(); i++) {
+              PVector prevVertex = vertices.get(i-1);
+              PVector vertex = vertices.get(i);
+              canvas.line(prevVertex.x, prevVertex.y, vertex.x, vertex.y);
+            }
         }
+        else if(vulnerability){
+          boolean in = (boolean) layer.contains(center).get(0);
+            if(in){
+              float damage = (int)layer.contains(center).get(1);
+              damage = map(damage,1,5,255,0);
+              canvas.stroke(255,damage,0,60);
+              for(int i = 1; i < vertices.size(); i++) {
+                PVector prevVertex = vertices.get(i-1);
+                PVector vertex = vertices.get(i);
+                canvas.line(prevVertex.x, prevVertex.y, vertex.x, vertex.y);
+              } 
+            }  
+        }
+        else{
+          
+          if(closed){
+            canvas.stroke(#e062e0);
+          }
+          else{
+            color occupColor = lerpColor(c, #FF0000, occupancy*2);    // Lane occupancy color interpolation
+            canvas.stroke(occupColor, 127); 
+            
+          }
+          canvas.strokeWeight(stroke);
+          for(int i = 1; i < vertices.size(); i++) {
+                PVector prevVertex = vertices.get(i-1);
+                PVector vertex = vertices.get(i);
+                canvas.line(prevVertex.x, prevVertex.y, vertex.x, vertex.y); 
+           }
+        }
+        
     }
     
     

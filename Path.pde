@@ -8,7 +8,7 @@
 public class Path {
 
     private final Roads ROADMAP; 
-    private final Agent AGENT;
+    private Agent AGENT;
     
     private ArrayList<Lane> lanes = new ArrayList();
     private float distance = 0;
@@ -18,7 +18,7 @@ public class Path {
     private Lane currentLane;
     private PVector toVertex;
     private boolean arrived = false;
-    
+    private POI poi;
     
     /**
     * Initiate Path
@@ -28,6 +28,11 @@ public class Path {
     public Path(Agent agent, Roads roads) {
         ROADMAP = roads;
         AGENT = agent;
+    }
+    
+    public Path(POI poi, Roads roads) {
+        ROADMAP = roads;
+        this.poi = poi;
     }
     
 
@@ -96,7 +101,7 @@ public class Path {
     * @return agent position after movement
     */
     public PVector move(PVector pos, float speed) {
-        PVector dir = PVector.sub(toVertex, pos);
+          PVector dir = PVector.sub(toVertex, pos);
         PVector movement = dir.copy().normalize().mult(speed);
         if(movement.mag() < dir.mag()) return movement;
         else {
@@ -118,6 +123,9 @@ public class Path {
             currentLane = lanes.get(i);
             toVertex = currentLane.getVertex(1);
             currentLane.addAgent(AGENT);
+            if(makeInjured){
+              currentLane.probInjured();
+            }
         } else arrived = true;
     }
     

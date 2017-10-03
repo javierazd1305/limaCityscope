@@ -15,7 +15,7 @@ class Layers{
     JSONObject roadNetwork=loadJSONObject(path);
     JSONArray lanes =roadNetwork.getJSONArray("features");
     //println(boundaries);
-    
+    print("Loading Vulmap... ");
     for(int i=0; i<lanes.size();i++){
         JSONObject lane =lanes.getJSONObject(i);
         JSONArray points=lane.getJSONObject("geometry").getJSONArray("coordinates");
@@ -30,7 +30,7 @@ class Layers{
         int damage = lane.getJSONObject("properties").getInt("damage");
         new Layer(p,damage);
     }
-    println("finish vulmap");
+    println("LOADED");
   }
   
   

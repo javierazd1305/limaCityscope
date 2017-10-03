@@ -18,6 +18,8 @@ private class Node implements Placeable, Comparable<Node> {
     private float f;
     private float g;
     
+    protected int vul; 
+    
     
     /**
     * Initiate node with its position. ID is defined to -1 until it is finally placed into roadmap
