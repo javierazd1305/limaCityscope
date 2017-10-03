@@ -54,7 +54,12 @@ public class Agents extends Facade<Agent> {
     */
     public void move() {
         for(Agent agent : items) {
-            agent.move(speed);
+            if(evacuate){
+              if(!agent.injured)agent.moveEvacuate(speed);
+            }else{
+            //if(!agent.injured)agent.move(speed)
+              agent.move(speed);
+            }
         }
     }
     
@@ -64,7 +69,7 @@ public class Agents extends Facade<Agent> {
     */
     public void moveEvacuate() {
         for(Agent agent : items) {
-            agent.moveEvacuate(speed);
+            if(!agent.injured)agent.moveEvacuate(speed);
         }
     }
     
@@ -72,9 +77,22 @@ public class Agents extends Facade<Agent> {
     *Get the shortest path to an specific type of POI
     *The type is defined in Agent
     */
-   public void getShortest() {
-      for (Agent agent : items) {
-        agent.destination = agent.findDestinationClosest();
+   public void getShortest(String type) {
+      if(evacuate){
+        roads.getType(type);
+        for (Agent agent : items) {
+          //agent.destination = agent.findDestinationClosest();
+          agent.destination = agent.findDestination(type);
+          //if(agent.destination.TYPE.equals("wareHouse") && agent.arrived){
+          //  agent.injured = true;
+          //}
+        }
+      }
+      else{
+        for (Agent agent : items) {
+           pois.makeUnavailableZona("ZONA_SEGURA");
+          agent.destination = agent.findDestination();
+        }
       }
   }
 
@@ -119,6 +137,7 @@ private class AgentFactory extends Factory {
                 
                 if(type.equals("PERSON")) agent = new Person(count, roads, size, tint);
                 if(type.equals("CAR")) agent = new Vehicle(count, roads, size, tint);
+                if(type.equals("WORKER")) agent = new Worker(count, roads, size, tint);
                 
                 if(agent != null) {
                     agents.add(agent);
@@ -160,6 +179,10 @@ public abstract class Agent implements Placeable {
     protected Path path;
     protected Node inNode;
     protected float distTraveled;
+    
+    //worker variables
+    protected boolean working = false;
+    protected boolean injured = false;
     
     
     /**
@@ -215,6 +238,11 @@ public abstract class Agent implements Placeable {
     * @return POI destination
     */
     public POI findDestination() {
+        try{
+          destination.unhost(this);    // IMPORTANT! Unhost agent from destination
+        }
+        catch(Exception e){
+        } 
         path.reset();
         arrived = false;
         POI newDestination = null;
@@ -225,12 +253,33 @@ public abstract class Agent implements Placeable {
         return newDestination;
     }
     
+    /**
+    *Get the nearest path to a specfic POI type
+    *@return New POI destination
+    */
+    public POI findDestinationClosest() {
+      path.reset();
+      arrived = false;
+      POI newDestination = null;
+      ArrayList<POI> possible = pois.filter(Filters.isAllowed(this));
+      float minDist = 10000000;
+      for (POI example : possible) {
+          float dist = PVector.dist(this.pos, example.getPosition());
+          if ((dist < minDist || inNode.equals(newDestination))) {
+          //if ((dist < minDist )) {
+            newDestination = example;
+            minDist = dist;
+          }
+      }
+      return newDestination;
+    }
+    
     
     /*
     * Move agent across the path at defined speed
     * @param speed  Speed in pixels/frame
     */
-    public void move(float speed) {
+      public void move(float speed) {
         if(!arrived) {
             if(!path.available()) panicMode = !path.findPath(inNode, destination);
             else {
@@ -249,6 +298,7 @@ public abstract class Agent implements Placeable {
     }
     
     
+    
     /**
     *Just move to the next POI and do nothing
     */
@@ -264,31 +314,29 @@ public abstract class Agent implements Placeable {
                     if(destination.host(this)) {
                         arrived = true;
                         whenArrived();
-                    } //else whenUnhostedEvacu();
+                    }
                 }
             }
         }
     }
   
-  /**
-  *Get the nearest path to a specfic POI type
-  *@return New POI destination
-  */
-  public POI findDestinationClosest() {
+
+    public POI findDestination(String type) {
     path.reset();
     arrived = false;
     POI newDestination = null;
-    //ArrayList<POI> possible = pois.filter(Filters.isAllowed(this));
-    float minDist = 10000000;
-    for (POI example : pois.getAll()) {
-      //if(example.TYPE.equals("HOSTAL")){
-        float dist = PVector.dist(this.pos, example.getPosition());
-        if ((dist < minDist)) {
-          newDestination = example;
-          minDist = dist;
+    ArrayList<POI> possible = pois.filter(Filters.isAllowed(this));
+    ArrayList<POI> candidates = new ArrayList();
+    if(!type.equals("")){
+      for (POI example : possible) {
+        if(example.TYPE.equals(type) || inNode.equals(newDestination)){
+          candidates.add(example);
         }
-      //}
+      }
+    }else{
+      candidates = possible;
     }
+    newDestination = candidates.get( round(random(0, candidates.size()-1)) );    // Random POI for the moment
     return newDestination;
   }
 
@@ -405,8 +453,21 @@ private class Person extends Agent {
             canvas.text(destination.NAME, pos.x, pos.y);
         }
         
-        canvas.fill(COLOR); canvas.noStroke();
-        canvas.ellipse(pos.x, pos.y, SIZE, SIZE);
+        if (working){
+          canvas.fill(#02507a); canvas.noStroke();
+          canvas.ellipse(pos.x, pos.y, SIZE, SIZE);
+        }
+        
+        else if(injured){
+          canvas.fill(#FF6600); canvas.noStroke();
+          canvas.ellipse(pos.x, pos.y, SIZE, SIZE);
+        }        
+        
+        else{
+          canvas.fill(COLOR); canvas.noStroke();
+          canvas.ellipse(pos.x, pos.y, SIZE, SIZE);
+        }
+        
     }
 
 
@@ -431,6 +492,32 @@ private class Person extends Agent {
         }
     }
 
+}
+/**
+* Worker -  Worker is a type of Person who the main activities that they do is stay in a POI and then go to a restaurant
+* @author        Javier Zarate
+* @version       1.0
+* @see           Agent
+*/
+private class Worker extends Person{
+    public Worker(int id, Roads map, int size, String hexColor) {
+        super(id, map, size, hexColor);
+        working = true;
+    }
+    
+    @Override
+    protected void whenHosted() {
+        wander(2);
+        int waitingTime =  working ? 10000 : 5000;
+        //String name    = props.isNull("name") ? "null" : props.getString("name");
+        //if(working) waitingTime = 30000;
+        if(millis() - timer > waitingTime) {
+            panicMode = false;
+            destination.unhost(this);    // IMPORTANT! Unhost agent from destination
+            destination = findDestination();
+            working = !working;
+        }
+    }
 }
 
 
